@@ -1,9 +1,12 @@
 package com.tutorials.micro.moviecatalogservice.resources;
 
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
 import com.tutorials.micro.moviecatalogservice.model.CatalogueItem;
 import com.tutorials.micro.moviecatalogservice.model.Movie;
 import com.tutorials.micro.moviecatalogservice.model.Rating;
 import com.tutorials.micro.moviecatalogservice.model.UserRating;
+import com.tutorials.micro.moviecatalogservice.services.CatalogueService;
+import com.tutorials.micro.moviecatalogservice.services.RatingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,18 +26,21 @@ public class MovieCatalogueResource {
     @Autowired
     private RestTemplate restTemplate;
 
+    @Autowired
+    CatalogueService catalogueService;
+
+    @Autowired
+    RatingService ratingService;
+
 //    @Autowired
 //    WebClient.Builder webClientBuilder;
 
     @RequestMapping("/{userId}")
     public List<CatalogueItem> getCatalogue(@PathVariable("userId") String userId) {
-        UserRating userRating = restTemplate.getForObject("http://movie-ratings-service/ratingsdata/user/" + userId, UserRating.class);
+        UserRating userRating = ratingService.getUserRating(userId);
 
         return userRating.getRatings().stream()
-                .map(rating -> {
-                    Movie movie = restTemplate.getForObject("http://movie-info-service/movies/" + rating.getMovieId(), Movie.class);
-                    return new CatalogueItem(movie.getName(), "Description", rating.getRating());
-                })
+                .map(rating -> catalogueService.getCatalogueItem(rating))
                 .collect(Collectors.toList());
     }
 }
